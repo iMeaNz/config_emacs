@@ -1,0 +1,95 @@
+/*
+** EPITECH PROJECT, 2021
+** my_sokoban
+** File description:
+** main.c
+*/
+
+#include "my.h"
+#include <ncurses.h>
+#include "box.h"
+#include "map.h"
+#include <stdlib.h>
+#include "storages.h"
+
+char **parse_file(char *path);
+int nb_line_map(map_t map);
+void fill_nb_cols(map_t *map);
+int check_nb_boxes(map_t map);
+void free_map(map_t *map);
+void print_map(map_t map);
+void print_boxes(boxes_t boxes);
+void find_player_position(map_t *map);
+int main_loop(map_t map, map_t init_map, boxes_t boxes, storage_t *storages);
+void set_pos_box(int i, int j, int pos_box, boxes_t *output);
+void set_pos_storage(int i, int j, int pos_storage, storage_t *output);
+void clear_map(map_t *map);
+
+void display_usage(void)
+{
+    my_printf("USAGE\n\t./my_sokoban map\nDESCRPTION\n\tmap file");
+    my_printf(" representing the warehouse map containing '#' for");
+    my_printf(" walls,\n\t'P' for the player, 'X' for boxes and 'O'");
+    my_printf(" for storage locations.\n");
+}
+
+map_t init_map(char *path)
+{
+    map_t output;
+    output.map = parse_file(path);
+    output.nb_lines = nb_line_map(output);
+    fill_nb_cols(&output);
+    find_player_position(&output);
+    return output;
+}
+
+boxes_t init_boxes(map_t map)
+{
+    boxes_t output;
+    output.nb_boxes = check_nb_boxes(map);
+    output.pos_boxes = malloc(sizeof(box_t) * (output.nb_boxes + 1));
+    output.pos_boxes[output.nb_boxes].defeat = -1;
+    int pos_box = 0;
+    for (int i = 0; map.map[i] != 0; ++i) {
+        for (int j = 0; map.map[i][j] != '\0'; ++j) {
+            (map.map[i][j] == 'X') ? set_pos_box(i, j, pos_box, &output) : 0;
+            (map.map[i][j] == 'X') ? pos_box++ : 0;
+        }
+    }
+    return output;
+}
+
+storage_t *init_storages(map_t map, boxes_t boxes)
+{
+    storage_t *output = malloc(sizeof(storage_t) * (boxes.nb_boxes + 1));
+    int pos = 0;
+    output[boxes.nb_boxes].x = -1;
+    for (int i = 0; map.map[i] != 0; ++i) {
+        for (int j = 0; map.map[i][j] != '\0'; ++j) {
+            (map.map[i][j] == 'O') ? set_pos_storage(i, j, pos, output) : 0;
+            (map.map[i][j] == 'O') ? pos++ : 0;
+        }
+    }
+    return output;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc != 2) {
+        my_putstderr("Wrong number of arguments");
+        exit(84);
+    }
+    if (my_strcmp(argv[1], "-h") == 0) {
+        display_usage();
+        exit(0);
+    }
+    map_t map = init_map(argv[1]);
+    map_t initial_map = init_map(argv[1]);
+    boxes_t boxes = init_boxes(map);
+    storage_t *storages = init_storages(map, boxes);
+    clear_map(&map);
+    int ending = main_loop(map, initial_map, boxes, storages);
+    free_map(&map);
+    free_map(&initial_map);
+    return ending;
+}
